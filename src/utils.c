@@ -83,5 +83,13 @@ void buf_copy(buf_t *dst, buf_t *src)
 uint16_t checksum16(uint16_t *buf, int len)
 {
     // TODO
-        
+    uint32_t checksum=0,temp;
+    for(int i = 0; i < len; i++){
+        checksum += buf[i];
+        // printf("buf[%d]=%x\t",i,buf[i]);
+    }
+    // printf("\n");
+    checksum = (checksum >> 16) + (checksum & 0xffff); // 第一次将高16位加到低16位
+    checksum += (checksum >> 16) & 0xffff;// 上面那次加法若有进位，再次加到低16位
+    return (uint16_t)(~checksum); // 将上述的和取反，即得到校验和
 }

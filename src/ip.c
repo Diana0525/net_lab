@@ -3,7 +3,9 @@
 #include "icmp.h"
 #include "udp.h"
 #include <string.h>
-
+#include <stdio.h>
+int ip_id=-1;
+#define CHECK_LEN 10 // 输入checksum数组的长度
 /**
  * @brief 处理一个收到的数据包
  *        你首先需要做报头检查，检查项包括：版本号、总长度、首部长度等。
@@ -24,7 +26,48 @@
 void ip_in(buf_t *buf)
 {
     // TODO 
+    ip_hdr_t *ip_hdr = (struct ip_hdr_t*)buf->data;
+    uint16_t temp,checksum; // 缓存头部校验和字段
+    uint16_t buf16[CHECK_LEN];
+    uint16_t temp2;
+    // 报头检查
+    if(ip_hdr->version != IP_VERSION_4
+        || ip_hdr->total_len > UINT16_MAX
+        || ip_hdr->hdr_len > 15
+    ){
+        return;
+    }
+    temp = ip_hdr->hdr_checksum;
+    // printf("temp:%x\t",temp);
+    ip_hdr->hdr_checksum = 0;
+    for(int i = 0; i < CHECK_LEN; i++){
+        temp2 = (buf->data[2*i] << 8)&0xff00;
+        buf16[i] = temp2 + buf->data[2*i+1];
+        buf16[i] = swap16(buf16[i]);
+        // printf(" %x %x %x\n",buf->data[2*i],buf->data[2*i+1],buf16[i]);
+    }
+    checksum = checksum16(&buf16, ip_hdr->hdr_len*IP_HDR_LEN_PER_BYTE/2);
+    if(temp != checksum){ // 如果不一致，则不处理该数据报
+        printf("校验和算错了!\n");
+        return;
+    }
 
+    // 检查收到的数据包的目的IP地址是否为本机的IP地址，只处理目的IP为本机的数据报
+    if(memcmp(ip_hdr->dest_ip, net_if_ip, NET_IP_LEN) != 0){
+        return;
+    }
+    // 调用 buf_remove_header 去掉 IP 报头
+    buf_remove_header(buf, ip_hdr->hdr_len*IP_HDR_LEN_PER_BYTE);
+    // 检查IP报头的协议字段
+    if(ip_hdr->protocol == NET_PROTOCOL_ICMP){
+        icmp_in(buf, ip_hdr->src_ip);
+    }else if (ip_hdr->protocol == NET_PROTOCOL_UDP)
+    {
+        udp_in(buf, ip_hdr->src_ip);
+    }else{
+        icmp_unreachable(buf, ip_hdr->src_ip, ICMP_CODE_PROTOCOL_UNREACH);// 协议不可达
+    }
+    
 }
 
 /**
@@ -44,7 +87,26 @@ void ip_in(buf_t *buf)
 void ip_fragment_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol, int id, uint16_t offset, int mf)
 {
     // TODO
-    
+    ip_hdr_t *ip_hdr;
+    // 调用 buf_add_header 增加 IP 数据报头部缓存空间
+    buf_add_header(buf, sizeof(ip_hdr_t));
+    uint16_t temp,checksum;
+    //  填写 IP 数据报头部字段
+    ip_hdr = (struct ip_her_t*)buf->data;
+    memcpy(ip_hdr->dest_ip, ip, NET_IP_LEN);
+    ip_hdr->protocol = protocol;
+    ip_hdr->id = id;
+    ip_hdr->flags_fragment = offset/IP_HDR_OFFSET_PER_BYTE&0x1fff;
+    if(mf == 1){
+        temp = ip_hdr->flags_fragment >> 8;
+        temp = temp | IP_MORE_FRAGMENT;
+        temp = temp << 8;
+        ip_hdr->flags_fragment |= temp; 
+    }
+    ip_hdr->hdr_checksum = 0;
+    checksum = checksum16((uint16_t*)&buf->data, ip_hdr->hdr_len*IP_HDR_LEN_PER_BYTE/2);
+    ip_hdr->hdr_checksum = checksum;
+    arp_in(buf);
 }
 
 /**
@@ -68,5 +130,24 @@ void ip_fragment_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol, int id, u
 void ip_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
 {
     // TODO 
-    
+    buf_t ip_buf;
+    uint16_t offset=0;
+    uint16_t Ethernet_max_len = ETHERNET_MTU-sizeof(ip_hdr_t); // 以太网帧最大包长
+    ip_id++;
+    //  检查从上层传递下来的数据报包长是否大于以太网帧的最大包长
+    if (buf->len > Ethernet_max_len)// 超过以太网帧的最大包长，则需要分片发送
+    {
+        while(offset+Ethernet_max_len < buf->len){
+            buf_init(&ip_buf, Ethernet_max_len);
+            memcpy(ip_buf.data, buf->data+offset, Ethernet_max_len);
+            ip_fragment_out(&ip_buf, ip, protocol, ip_id, offset, 1);
+            offset += Ethernet_max_len;
+        }
+        buf_init(&ip_buf, Ethernet_max_len);
+        ip_fragment_out(&ip_buf, ip, protocol, ip_id, offset, 0);
+    }
+    else
+    {
+        ip_fragment_out(buf, ip, protocol, ip_id, 0, 0);
+    }
 }
