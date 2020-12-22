@@ -4,7 +4,7 @@
 #include "config.h"
 #include <string.h>
 #include <stdio.h>
-
+#define ARP_LENGTH 46
 /**
  * @brief 初始的arp包
  * 
@@ -45,7 +45,10 @@ arp_buf_t arp_buf;
 void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
 {
     // TODO
-
+    // 轮询检查arp_table中所有ARP表项是否有超时
+    for (int i = 0; i < ARP_MAX_ENTRY; i++){
+        if(arp_table[i].timeout)
+    }
 }
 
 /**
@@ -73,7 +76,16 @@ static uint8_t *arp_lookup(uint8_t *ip)
 static void arp_req(uint8_t *target_ip)
 {
     // TODO
-
+    arp_pkt_t arp_pkt_t;
+    // ARP报文+PAD=46
+    buf_init(&txbuf, ARP_LENGTH); 
+    // 填写ARP报头
+    arp_pkt_t = arp_init_pkt;
+    memcpy(arp_pkt_t.sender_ip, target_ip, NET_IP_LEN);
+    arp_pkt_t.opcode = swap16(ARP_REQUEST);
+    memcpy(txbuf.data, &arp_pkt_t, sizeof(arp_pkt_t));
+    // 调用ethernet_out函数将ARP报文发送出去
+    ethernet_out(&txbuf, arp_pkt_t.target_mac, arp_pkt_t.pro_type);
 }
 
 /**
@@ -96,6 +108,43 @@ static void arp_req(uint8_t *target_ip)
 void arp_in(buf_t *buf)
 {
     // TODO
+    arp_pkt_t *arp = (arp_pkt_t*)buf->data;
+    arp_pkt_t arp_pkt_t;
+    uint8_t *get_mac;
+    int count_same=0;
+    int opcode = swap16(arp->opcode);
+    if (arp->hw_len != swap16(ARP_HW_ETHER)
+        || arp->pro_type != swap16(NET_PROTOCOL_IP)
+        || arp->hw_len != NET_MAC_LEN
+        || arp->pro_type != NET_IP_LEN
+        || (opcode != ARP_REQUEST && opcode != ARP_REPLY))
+    {
+        return ;// 报头有误
+    }
+
+    arp_update(arp->sender_ip, arp->sender_mac, ARP_VALID);
+    if(arp_buf.valid){// arp_buf有效
+        get_mac = arp_lookup(arp_buf.ip);
+        if(get_mac != NULL){
+            ethernet_out(&arp_buf.buf, get_mac, arp_buf.protocol);
+        }
+    }else // arp_buf无效
+    {
+        // 接收到的报文为ARP_REQUEST请求报文且请求报文的target_ip是本机的IP
+        if(arp->opcode == swap16(ARP_REQUEST) && memcmp(arp->target_ip, net_if_ip, NET_IP_LEN) == 0){
+            // 认为时请求本机的MAC地址的ARP请求报文，回应一个响应报文
+            buf_init(&txbuf, ARP_LENGTH); 
+            // 填写ARP报头
+            arp_pkt_t = arp_init_pkt;
+            memcpy(arp_pkt_t.target_ip, arp_init_pkt.sender_ip, NET_IP_LEN);
+            memcpy(arp_pkt_t.target_mac, arp_init_pkt.sender_mac, NET_MAC_LEN);
+            memcpy(arp_pkt_t.sender_ip, arp->target_ip, NET_IP_LEN);
+            memcpy(arp_pkt_t.sender_mac, net_if_mac, NET_MAC_LEN);
+            arp_pkt_t.opcode = swap16(ARP_REPLY);// ARP响应包
+            memcpy(txbuf.data, &arp_pkt_t, sizeof(arp_pkt_t));
+            ethernet_out(&txbuf, arp_pkt_t.target_mac, arp_pkt_t.pro_type);// 响应请求MAC地址的报文
+        }
+    }
     
 }
 
@@ -113,6 +162,20 @@ void arp_in(buf_t *buf)
 void arp_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
 {
     // TODO
+    int count_same=0,i,j,temp,flag=0;
+    uint8_t *get_mac;
+    get_mac = arp_lookup(ip);
+    if(get_mac != NULL){// 标志在表中找到MAC地址
+        ethernet_out(buf, get_mac, protocol);
+    }
+    else{// 没有找到对应的MAC地址
+        //将来自IP层的数据包缓存到arp_buf的buf中
+        memcpy(&arp_buf.buf, buf, sizeof(buf_t));
+        memcpy(&arp_buf.ip, ip, NET_IP_LEN);
+        memcpy(&arp_buf.protocol, protocol, sizeof(net_protocol_t));
+        arp_buf.valid = 1;
+        arp_req(ip);
+    }
 
 }
 
@@ -125,5 +188,5 @@ void arp_init()
     for (int i = 0; i < ARP_MAX_ENTRY; i++)
         arp_table[i].state = ARP_INVALID;
     arp_buf.valid = 0;
-    arp_req(net_if_ip);
+    arp_req(net_if_ip); // 发送一个无回报ARP包
 }
