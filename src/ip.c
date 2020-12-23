@@ -27,7 +27,7 @@ uint16_t total_len;
 void ip_in(buf_t *buf)
 {
     // TODO 
-    ip_hdr_t *ip_hdr = (struct ip_hdr_t*)buf->data;
+    ip_hdr_t *ip_hdr = (ip_hdr_t*)buf->data;
     uint16_t temp,checksum; // 缓存头部校验和字段
     uint16_t buf16[CHECK_LEN];
     uint16_t temp2;
@@ -96,7 +96,7 @@ void ip_fragment_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol, int id, u
     uint16_t temp,checksum,temp2;
     uint16_t buf16[CHECK_LEN];
     //  填写 IP 数据报头部字段
-    ip_hdr = (struct ip_her_t*)buf->data;
+    ip_hdr = (ip_hdr_t*) buf->data;
     memcpy(ip_hdr->dest_ip, ip, NET_IP_LEN);
     ip_hdr->version = IP_VERSION_4;
     ip_hdr->hdr_len = 5;

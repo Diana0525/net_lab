@@ -22,8 +22,7 @@ void icmp_in(buf_t *buf, uint8_t *src_ip)
     // TODO
     icmp_hdr_t *icmp_hdr;
     icmp_hdr_t new_icmp_hdr;
-    uint16_t *data16,temp2;
-    data16 = (uint16_t*)malloc(buf->len/2);
+    uint16_t data16[BUF_MAX_LEN],temp2;
     // 检查buf长度是否小于icmp头部长度
     // 首先做报头检测，检测报头长度等
     if(buf->len < sizeof(icmp_hdr_t)){
@@ -74,9 +73,8 @@ void icmp_unreachable(buf_t *recv_buf, uint8_t *src_ip, icmp_code_t code)
     // TODO
     // 调用 buf_init 来初始化 txbuf
     icmp_hdr_t icmp_hdr;
-    uint16_t *data16,temp2;
+    uint16_t data16[BUF_MAX_LEN],temp;
     buf_init(&txbuf, ICMP_WRONG_LEN);
-    data16 = (uint16_t*)malloc(txbuf.len/2);
     icmp_hdr.type = ICMP_TYPE_UNREACH; // 类型为目的不可达
     icmp_hdr.code = code;
     icmp_hdr.id = 0;
@@ -90,8 +88,8 @@ void icmp_unreachable(buf_t *recv_buf, uint8_t *src_ip, icmp_code_t code)
     // 计算校验和
     // 手动将uint8数组转换为uint16型
     for(int i = 0; i < txbuf.len/2; i++){
-        temp2 = (txbuf.data[2*i] << 8)&0xff00;
-        data16[i] = temp2 + txbuf.data[2*i+1];
+        temp = (txbuf.data[2*i] << 8)&0xff00;
+        data16[i] = temp + txbuf.data[2*i+1];
         data16[i] = swap16(data16[i]);
     }
     icmp_hdr.checksum = checksum16(data16, txbuf.len/2);

@@ -1,0 +1,9 @@
+/home/cs/Desktop/net_lab/build/CMakeFiles/rebuild_cache.dir
+/home/cs/Desktop/net_lab/build/CMakeFiles/edit_cache.dir
+/home/cs/Desktop/net_lab/build/CMakeFiles/ctest_eth_in.dir
+/home/cs/Desktop/net_lab/build/CMakeFiles/ctest_icmp.dir
+/home/cs/Desktop/net_lab/build/CMakeFiles/main.dir
+/home/cs/Desktop/net_lab/build/CMakeFiles/ctest_ip.dir
+/home/cs/Desktop/net_lab/build/CMakeFiles/ctest_eth_out.dir
+/home/cs/Desktop/net_lab/build/CMakeFiles/ctest_ip_frag.dir
+/home/cs/Desktop/net_lab/build/CMakeFiles/ctest_arp.dir

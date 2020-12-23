@@ -15,7 +15,7 @@
  * @param buf 要处理的数据包
  */
 void ethernet_in(buf_t *buf)
-{
+{   
     // TODO
     int proto = buf->data[12];
     proto <<= 8;
