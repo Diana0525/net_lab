@@ -2,6 +2,7 @@
 #define ICMP_H
 #include <stdint.h>
 #include "utils.h"
+#define ICMP_WRONG_LEN 20+8+8
 #pragma pack(1)
 typedef struct icmp_hdr
 {

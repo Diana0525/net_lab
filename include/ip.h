@@ -4,6 +4,7 @@
 #include "net.h"
 #include "utils.h"
 #pragma pack(1)
+
 typedef struct ip_hdr
 {
     uint8_t hdr_len : 4;         // 首部长, 4字节为单位
@@ -24,7 +25,8 @@ typedef struct ip_hdr
 #define IP_HDR_OFFSET_PER_BYTE (8) //ip分片偏移长度单位
 #define IP_VERSION_4 (4)           //ipv4
 #define IP_MORE_FRAGMENT 1 << 5    //ip分片mf位
-
+#define CHECK_LEN 10                // 输入checksum数组的长度
+#define IP_HDR_LEN 20               //ip数据报头一般为20字节
 /**
  * @brief 处理一个收到的数据包
  * 
