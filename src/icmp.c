@@ -29,7 +29,7 @@ void icmp_in(buf_t *buf, uint8_t *src_ip)
         return;
     }
     // 查看该报文的ICMP类型是否为回显请求
-    icmp_hdr = (struct icmp_hdr_t*) buf->data;
+    icmp_hdr = (icmp_hdr_t*) buf->data;
     if(icmp_hdr->type != ICMP_TYPE_ECHO_REQUEST){
         return;
     }

@@ -29,7 +29,7 @@ arp_entry_t arp_table[ARP_MAX_ENTRY];
  * @brief 长度为1的arp分组队列，当等待arp回复时暂存未发送的数据包
  * 
  */
-arp_buf_t arp_buf;
+arp_buf_t arp_buf[2]; // 为了让UDP调试工具第一次发送时也能接收到完整的数据包
 
 /**
  * @brief 更新arp表
@@ -154,17 +154,28 @@ void arp_in(buf_t *buf)
         return ;// 报头有误
     }
     arp_update(arp->sender_ip, arp->sender_mac, ARP_VALID);
-    if(arp_buf.valid){// arp_buf有效
-        arp_buf.valid = 0;
-        get_mac = arp_lookup(arp_buf.ip);
-        if(get_mac != NULL){
-            ethernet_out(&arp_buf.buf, get_mac, arp_buf.protocol);
+    if(arp_buf[0].valid || arp_buf[1].valid){// arp_buf有效
+        if(arp_buf[0].valid){
+            arp_buf[0].valid = 0;
+            get_mac = arp_lookup(arp_buf[0].ip);
+            if(get_mac != NULL){
+                ethernet_out(&arp_buf[0].buf, get_mac, arp_buf[0].protocol);
+            }
         }
+        if (arp_buf[1].valid)
+        {
+            arp_buf[1].valid = 0;
+            get_mac = arp_lookup(arp_buf[1].ip);
+            if(get_mac != NULL){
+                ethernet_out(&arp_buf[1].buf, get_mac, arp_buf[1].protocol);
+            }
+        }
+        
     }else // arp_buf无效
     {
         // 接收到的报文为ARP_REQUEST请求报文且请求报文的target_ip是本机的IP
         if(arp->opcode == swap16(ARP_REQUEST) && memcmp(arp->target_ip, net_if_ip, NET_IP_LEN) == 0){
-            // 认为时请求本机的MAC地址的ARP请求报文，回应一个响应报文
+            // 认为是请求本机的MAC地址的ARP请求报文，回应一个响应报文
             buf_init(&txbuf, ARP_LENGTH); 
             // 填写ARP报头
             arp_pkt_t = arp_init_pkt;
@@ -202,11 +213,16 @@ void arp_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
     }
     else{// 没有找到对应的MAC地址
         //将来自IP层的数据包缓存到arp_buf的buf中
-        memcpy(&arp_buf.buf, buf, sizeof(buf_t));
-        memcpy(&arp_buf.ip, ip, NET_IP_LEN);
-        arp_buf.protocol = protocol;
-        arp_buf.valid = 1;
-        arp_req(ip);
+        for (int i = 0; i < 2; i++){
+            if(arp_buf[i].valid == 0){
+                memcpy(&arp_buf[i].buf, buf, sizeof(buf_t));
+                memcpy(&arp_buf[i].ip, ip, NET_IP_LEN);
+                arp_buf[i].protocol = protocol;
+                arp_buf[i].valid = 1;
+                arp_req(ip);
+            }
+        }
+        
     }
 
 }
@@ -219,6 +235,8 @@ void arp_init()
 {
     for (int i = 0; i < ARP_MAX_ENTRY; i++)
         arp_table[i].state = ARP_INVALID;
-    arp_buf.valid = 0;
+    for (int i = 0; i < 2; i++){
+        arp_buf[i].valid = 0;
+    }
     arp_req(net_if_ip); // 发送一个无回报ARP包
 }

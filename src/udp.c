@@ -114,14 +114,12 @@ void udp_in(buf_t *buf, uint8_t *src_ip)
             // 去掉UDP报头
             buf_remove_header(buf, sizeof(udp_hdr_t));
             // 回调函数
-            printf("hello1\n");
             udp_table[i].handler(&udp_table[i], src_ip, udp_hdr->src_port, buf);
             break;
         }
     }
     if(flag == 0){ // 表示没找到
         // 增加IPv4数据报头部
-        printf("hello2\n");
         buf_add_header(buf, IP_HDR_LEN);
         icmp_unreachable(buf, src_ip, ICMP_CODE_PORT_UNREACH);
     }
@@ -146,8 +144,8 @@ void udp_out(buf_t *buf, uint16_t src_port, uint8_t *dest_ip, uint16_t dest_port
     buf_add_header(buf, sizeof(udp_hdr_t)); // 增加UDP报头
     // 填充UDP首部字段
     udp_hdr = (udp_hdr_t*) buf->data;
-    udp_hdr->src_port = src_port;
-    udp_hdr->dest_port = dest_port;
+    udp_hdr->src_port = swap16(src_port);
+    udp_hdr->dest_port = swap16(dest_port);
     udp_hdr->total_len = swap16(buf->len); // 长度为UDP头部和UDP数据报的总长度
     udp_hdr->checksum = udp_checksum(buf, net_if_ip, dest_ip);
     ip_out(buf, dest_ip, NET_PROTOCOL_UDP);

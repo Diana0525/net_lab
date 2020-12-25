@@ -67,7 +67,6 @@ void ip_in(buf_t *buf)
         buf_remove_header(buf, ip_hdr->hdr_len*IP_HDR_LEN_PER_BYTE);
         udp_in(buf, ip_hdr->src_ip);
     }else{
-
         icmp_unreachable(buf, ip_hdr->src_ip, ICMP_CODE_PROTOCOL_UNREACH);// 协议不可达
     }
     
