@@ -51,7 +51,7 @@ void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
     time(&now_time);// 获取当前时间
     // 轮询检查arp_table中所有ARP表项是否有超时
     for (int i = 0; i < ARP_MAX_ENTRY; i++){
-        if(arp_table[i].timeout-now_time > ARP_TIMEOUT_SEC){
+        if(now_time - arp_table[i].timeout > ARP_TIMEOUT_SEC){
             arp_table->state = ARP_INVALID;
         }
     }
