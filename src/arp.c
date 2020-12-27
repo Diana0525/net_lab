@@ -52,7 +52,7 @@ void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
     // 轮询检查arp_table中所有ARP表项是否有超时
     for (int i = 0; i < ARP_MAX_ENTRY; i++){
         if(now_time - arp_table[i].timeout > ARP_TIMEOUT_SEC){
-            arp_table->state = ARP_INVALID;
+            arp_table[i].state = ARP_INVALID;
         }
     }
     // 查找ARP表项是否有ARP_INVALID
@@ -70,7 +70,7 @@ void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
     if(vaild_flag == 0){ // 所有表项都不是ARP_INVALID
         max = arp_table[0].timeout;
         for(int i = 1; i < ARP_MAX_ENTRY; i++){
-            if(arp_table[i].timeout>max){
+            if(arp_table[i].timeout<max){
                 max = arp_table[i].timeout;
                 temp = i;
             }
@@ -109,7 +109,7 @@ static void arp_req(uint8_t *target_ip)
 {
     // TODO
     arp_pkt_t arp_pkt_t;
-    // ARP报文+PAD=46
+    // ARP报文长度为28
     buf_init(&txbuf, ARP_LENGTH); 
     // 填写ARP报头
     arp_pkt_t = arp_init_pkt;
@@ -220,6 +220,7 @@ void arp_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
                 arp_buf[i].protocol = protocol;
                 arp_buf[i].valid = 1;
                 arp_req(ip);
+                break;
             }
         }
         

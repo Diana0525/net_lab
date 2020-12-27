@@ -82,9 +82,9 @@ void icmp_unreachable(buf_t *recv_buf, uint8_t *src_ip, icmp_code_t code)
     icmp_hdr.checksum = 0; // 校验和初始化为0
     memcpy(txbuf.data, &icmp_hdr, sizeof(icmp_hdr_t));
     // 复制IP数据报头部
-    memcpy(txbuf.data+sizeof(icmp_hdr_t), recv_buf, IP_HDR_LEN);
-    // 复制原始IP数据报中的前8字节 
-    memcpy(txbuf.data+sizeof(icmp_hdr_t)+IP_HDR_LEN, recv_buf, 8);
+    memcpy(txbuf.data+sizeof(icmp_hdr_t), recv_buf->data, IP_HDR_LEN);
+    // 复制原始IP数据报中的前8字节
+    memcpy(txbuf.data+sizeof(icmp_hdr_t)+IP_HDR_LEN, recv_buf->data+IP_HDR_LEN, 8);
     // 计算校验和
     // 手动将uint8数组转换为uint16型
     for(int i = 0; i < txbuf.len/2; i++){
